@@ -1,5 +1,11 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
+// Set environment variables for better Puppeteer compatibility
+process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
+process.env.PUPPETEER_EXECUTABLE_PATH = process.env.CHROME_BIN || undefined;
 
 const app = express();
 
@@ -38,16 +44,40 @@ app.get('/test/', async (req, res) => {
       return res.status(400).send('Invalid URL format');
     }
 
-    // Launch browser
+    // Launch browser with additional args for Replit/Linux environments
     browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: 'new', // Use new headless mode
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--single-process', // Run in single process mode
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ],
+      ignoreDefaultArgs: ['--disable-extensions'],
+      timeout: 60000 // Increase launch timeout
     });
 
     const page = await browser.newPage();
 
+    // Set viewport
+    await page.setViewport({ width: 1280, height: 720 });
+
     // Navigate to the provided URL
-    await page.goto(validUrl.href, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(validUrl.href, {
+      waitUntil: 'networkidle2',
+      timeout: 30000
+    });
 
     // Check if button exists
     const buttonExists = await page.$('#bt');
@@ -80,8 +110,56 @@ app.get('/test/', async (req, res) => {
   } finally {
     // Close browser
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (e) {
+        console.error('Error closing browser:', e);
+      }
     }
+  }
+});
+
+// Alternative route using cheerio (for static content only)
+app.get('/test-static/', async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      return res.status(400).send('URL parameter is required and must be a valid string');
+    }
+
+    // Basic URL validation
+    let validUrl;
+    try {
+      validUrl = new URL(url.trim());
+      if (!validUrl.protocol.startsWith('http')) {
+        return res.status(400).send('URL must use HTTP or HTTPS protocol');
+      }
+    } catch (e) {
+      return res.status(400).send('Invalid URL format');
+    }
+
+    // Fetch HTML using axios
+    const response = await axios.get(validUrl.href, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    // Parse HTML with cheerio
+    const $ = cheerio.load(response.data);
+
+    // Check if input field exists and get its value
+    const inputValue = $('#inp').val() || '';
+
+    // Return the value as plain text
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(inputValue);
+
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error: ' + error.message);
   }
 });
 
