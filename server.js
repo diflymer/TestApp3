@@ -1,6 +1,5 @@
 const express = require('express');
-const pug = require('pug');
-const axios = require('axios');
+const puppeteer = require('puppeteer');
 
 const app = express();
 
@@ -14,96 +13,76 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// WordPress routes
-app.get('/wordpress/', (req, res) => {
-  // Simple WordPress-like homepage
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>WordPress Site</title>
-    </head>
-    <body>
-        <h1>Welcome to WordPress</h1>
-        <div class="post">
-            <h2>72457f98-f632-4204-8a92-eabc6e8b43a5</h2>
-            <p>This is the main post with ID 1.</p>
-        </div>
-    </body>
-    </html>
-  `);
-});
-
-app.get('/wordpress/wp-json/wp/v2/posts', (req, res) => {
-  // WordPress REST API posts endpoint
-  res.json([
-    {
-      id: 1,
-      title: {
-        rendered: "72457f98-f632-4204-8a92-eabc6e8b43a5"
-      },
-      content: {
-        rendered: "<p>This is the main post with ID 1.</p>"
-      },
-      status: "publish",
-      type: "post"
-    }
-  ]);
-});
-
-app.get('/wordpress/wp-json/wp/v2/posts/:id', (req, res) => {
-  const postId = parseInt(req.params.id);
-  if (postId === 1) {
-    res.json({
-      id: 1,
-      title: {
-        rendered: "72457f98-f632-4204-8a92-eabc6e8b43a5"
-      },
-      content: {
-        rendered: "<p>This is the main post with ID 1.</p>"
-      },
-      status: "publish",
-      type: "post"
-    });
-  } else {
-    res.status(404).json({ message: "Post not found" });
-  }
-});
-
-// Render route
-app.post('/render/', async (req, res) => {
-  try {
-    const { random2, random3 } = req.body;
-    const addr = req.query.addr;
-
-    if (!addr) {
-      return res.status(400).json({ error: 'Missing addr query parameter' });
-    }
-
-    if (!random2 || !random3) {
-      return res.status(400).json({ error: 'Missing random2 or random3 in request body' });
-    }
-
-    // Fetch the pug template from the provided URL
-    const response = await axios.get(addr);
-    const template = response.data;
-
-    // Compile and render the pug template with the provided data
-    const compiledFunction = pug.compile(template);
-    const html = compiledFunction({ random2, random3 });
-
-    res.send(html);
-  } catch (error) {
-    console.error('Error rendering template:', error);
-    res.status(500).json({ error: 'Failed to render template' });
-  }
-});
-
 app.get('/login/', (_, res) => {
   // Добавлен логин пользователя
   res.send('72457f98-f632-4204-8a92-eabc6e8b43a5');
+});
+
+app.get('/test/', async (req, res) => {
+  let browser = null;
+  try {
+    const { url } = req.query;
+
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      return res.status(400).send('URL parameter is required and must be a valid string');
+    }
+
+    // Basic URL validation
+    let validUrl;
+    try {
+      validUrl = new URL(url.trim());
+      if (!validUrl.protocol.startsWith('http')) {
+        return res.status(400).send('URL must use HTTP or HTTPS protocol');
+      }
+    } catch (e) {
+      return res.status(400).send('Invalid URL format');
+    }
+
+    // Launch browser
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+
+    // Navigate to the provided URL
+    await page.goto(validUrl.href, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    // Check if button exists
+    const buttonExists = await page.$('#bt');
+    if (!buttonExists) {
+      return res.status(404).send('Button with id="bt" not found');
+    }
+
+    // Check if input field exists
+    const inputExists = await page.$('#inp');
+    if (!inputExists) {
+      return res.status(404).send('Input field with id="inp" not found');
+    }
+
+    // Click the button
+    await page.click('#bt');
+
+    // Wait a moment for the page to update (using setTimeout instead of deprecated waitForTimeout)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Get the value from the input field
+    const value = await page.$eval('#inp', el => el.value || '');
+
+    // Return the value as plain text
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(value);
+
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Internal server error: ' + error.message);
+  } finally {
+    // Close browser
+    if (browser) {
+      await browser.close();
+    }
+  }
 });
 
 const PORT = 3000;
