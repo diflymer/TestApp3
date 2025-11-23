@@ -90,21 +90,22 @@ curl -X POST http://localhost:3000/insert/ \
 Для запуска на Replit:
 
 1. Создайте новый Replit проект с Node.js
-2. Скопируйте файлы проекта
-3. Установите зависимости: `npm install`
-4. Если возникают проблемы с Puppeteer, попробуйте:
-
-   **Вариант 1: Установка системных зависимостей**
-   ```bash
-   # В Replit Shell выполните:
-   nix-env -iA nixpkgs.chromium
-   export PUPPETEER_EXECUTABLE_PATH=$(which chromium)
-   ```
-
-   **Вариант 2: Использование альтернативного эндпоинта**
-   - Вместо `/test/` используйте `/test-static/` для статического контента
-
+2. Скопируйте файлы проекта (включая `replit.nix`)
+3. Replit автоматически установит системные зависимости из `replit.nix`
+4. Установите Node.js зависимости: `npm install`
 5. Запустите сервер: `npm start`
+
+**Важно:** Файл `replit.nix` содержит все необходимые системные библиотеки для работы Puppeteer. Если возникают проблемы:
+
+**Вариант 1: Ручная установка браузера**
+```bash
+# В Replit Shell выполните:
+export PUPPETEER_EXECUTABLE_PATH=$(which chromium)
+echo "Browser path: $PUPPETEER_EXECUTABLE_PATH"
+```
+
+**Вариант 2: Использование альтернативного эндпоинта**
+- Вместо `/test/` используйте `/test-static/` для статического контента (работает без браузера)
 
 ## Требования
 

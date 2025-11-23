@@ -2,5 +2,28 @@
     deps = [
         pkgs.chromium
         pkgs.nodejs
+        pkgs.glib
+        pkgs.gtk3
+        pkgs.libxss
+        pkgs.libgconf-2
+        pkgs.libxtst
+        pkgs.libxrandr
+        pkgs.libasound
+        pkgs.libpangocairo
+        pkgs.libatk1_0
+        pkgs.libcairo
+        pkgs.libgtk-3
+        pkgs.libgdk-pixbuf
+        pkgs.xorg.libX11
+        pkgs.xorg.libXcomposite
+        pkgs.xorg.libXdamage
+        pkgs.xorg.libXext
+        pkgs.xorg.libXfixes
+        pkgs.xorg.libXi
+        pkgs.xorg.libXrender
+        pkgs.xorg.libXtst
+        pkgs.nss
+        pkgs.cups
+        pkgs.alsa-lib
     ];
 }
